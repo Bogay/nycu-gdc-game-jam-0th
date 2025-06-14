@@ -1,10 +1,10 @@
 use color_eyre::eyre::{Context, Result};
-use directories::ProjectDirs;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 use tracing::error;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{self, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tui_logger::TuiTracingSubscriberLayer;
 
 pub static PROJECT_NAME: LazyLock<String> =
     LazyLock::new(|| env!("CARGO_CRATE_NAME").to_uppercase().to_string());
@@ -17,15 +17,9 @@ pub static LOG_ENV: LazyLock<String> =
     LazyLock::new(|| format!("{}_LOGLEVEL", PROJECT_NAME.clone()));
 pub static LOG_FILE: LazyLock<String> = LazyLock::new(|| format!("{}.log", env!("CARGO_PKG_NAME")));
 
-fn project_directory() -> Option<ProjectDirs> {
-    ProjectDirs::from("com", "kdheepak", env!("CARGO_PKG_NAME"))
-}
-
 pub fn get_data_dir() -> PathBuf {
     let directory = if let Some(s) = DATA_FOLDER.clone() {
         s
-    } else if let Some(proj_dirs) = project_directory() {
-        proj_dirs.data_local_dir().to_path_buf()
     } else {
         PathBuf::from(".").join(".data")
     };
@@ -33,6 +27,7 @@ pub fn get_data_dir() -> PathBuf {
 }
 
 pub fn initialize_logging() -> Result<()> {
+    tui_logger::init_logger(log::LevelFilter::Info)?;
     let directory = get_data_dir();
     std::fs::create_dir_all(directory.clone())?;
     let log_path = directory.join(LOG_FILE.clone());
@@ -55,6 +50,7 @@ pub fn initialize_logging() -> Result<()> {
     tracing_subscriber::registry()
         .with(file_subscriber)
         .with(ErrorLayer::default())
+        .with(TuiTracingSubscriberLayer)
         .init();
     Ok(())
 }
