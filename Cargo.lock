@@ -431,8 +431,11 @@ dependencies = [
  "crossterm",
  "rand",
  "ratatui",
+<<<<<<< HEAD
  "serde",
  "toml",
+=======
+>>>>>>> a8adff7 (feat: add menu)
  "tui-big-text",
 ]
 

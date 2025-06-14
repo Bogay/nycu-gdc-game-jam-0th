@@ -13,14 +13,22 @@ pub enum GameState {
     End,
 }
 
+<<<<<<< HEAD
 #[derive(Debug, Clone, Default, Deserialize)]
+=======
+#[derive(Debug, Default)]
+>>>>>>> a8adff7 (feat: add menu)
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
     enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
+<<<<<<< HEAD
 #[derive(Debug, Clone, Default, Deserialize)]
+=======
+#[derive(Debug, Clone, PartialEq, Default)]
+>>>>>>> a8adff7 (feat: add menu)
 pub struct Ally {
     pub element: AllyElement,
     pub second_element: Option<AllyElement>,
@@ -34,7 +42,11 @@ pub struct Ally {
     pub special_value: f32,
 }
 
+<<<<<<< HEAD
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+=======
+#[derive(Debug, Clone, PartialEq, Default)]
+>>>>>>> a8adff7 (feat: add menu)
 pub enum AllyElement {
     #[default]
     Basic,
@@ -44,7 +56,11 @@ pub enum AllyElement {
     Critical,
 }
 
+<<<<<<< HEAD
 #[derive(Debug, Clone, Default, Deserialize)]
+=======
+#[derive(Debug, Default, Clone)]
+>>>>>>> a8adff7 (feat: add menu)
 pub struct Enemy {
     pub hp: usize,
     pub move_speed: f32,
@@ -151,7 +167,10 @@ impl Game {
 
     pub fn init_game(&mut self) {
         self.enemy_spawn();
+<<<<<<< HEAD
         self.config = Some(self.load_config());
+=======
+>>>>>>> a8adff7 (feat: add menu)
     }
 
     pub fn update(&mut self) {
