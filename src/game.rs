@@ -56,7 +56,8 @@ pub struct Debuff {
     pub cooldown: f32,
 }
 
-enum Direction {
+#[derive(Debug, Clone)]
+pub enum Direction {
     Up,
     Down,
     Left,
@@ -438,8 +439,8 @@ impl Game {
             let ally = Ally {
                 element: AllyElement::Basic,
                 second_element: None,
-                atk: 10,
-                range: 1,
+                atk: 1000,
+                range: 5,
                 aoe_range: 0,
                 level: 1,
                 atk_speed: 1.0,
