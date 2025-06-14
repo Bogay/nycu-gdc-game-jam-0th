@@ -1,7 +1,5 @@
+use rand::prelude::IndexedRandom;
 use std::clone;
-
-use rand::seq::IteratorRandom;
-use rand::thread_rng;
 
 #[derive(Debug, Default)]
 enum GameState {
@@ -112,6 +110,9 @@ impl Game {
 
     // Generate a level 1 ally on a random empty grid
     pub fn ally_spawn(&mut self) {
+        use rand::seq::SliceRandom;
+        use rand::thread_rng;
+
         let mut empty_cells = Vec::new();
         for (i, row) in self.board.ally_grid.iter().enumerate() {
             for (j, cell) in row.iter().enumerate() {
@@ -120,7 +121,7 @@ impl Game {
                 }
             }
         }
-        if let Some(&(i, j)) = empty_cells.iter().choose(&mut rand::thread_rng()) {
+        if let Some(&(i, j)) = empty_cells.choose(&mut thread_rng()) {
             let ally = Ally {
                 element: AllyElement::Basic,
                 second_element: None,
