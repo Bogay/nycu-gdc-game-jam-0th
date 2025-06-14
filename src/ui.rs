@@ -4,9 +4,10 @@ use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Style, Stylize},
-    widgets::{Block, BorderType, Paragraph, Widget},
+    widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
 use tui_big_text::{BigText, PixelSize};
+use tui_logger::{TuiLoggerSmartWidget, TuiLoggerWidget};
 
 const APP_NAME: &str = "Brainrot TD";
 
@@ -40,17 +41,29 @@ impl Widget for &mut App {
                     Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
                         .areas(inner_block);
                 let [grid_area, action_panel_area] =
-                    Layout::vertical([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
+                    Layout::vertical([Constraint::Ratio(3, 4), Constraint::Fill(1)])
                         .areas(left_area);
 
-                self.render_grid(buf, grid_area);
+                self.render_grid(grid_area, buf);
+                self.render_logs(action_panel_area, buf);
             }
         }
     }
 }
 
 impl App {
-    fn render_grid(&mut self, buf: &mut Buffer, grid_area: Rect) {
+    fn render_logs(&mut self, area: Rect, buf: &mut Buffer) {
+        let block = Block::bordered()
+            .title("Events")
+            .padding(Padding::horizontal(2));
+        let inner_block = block.inner(area);
+        block.render(area, buf);
+        TuiLoggerWidget::default()
+            .state(&mut self.log_state.0)
+            .render(inner_block, buf);
+    }
+
+    fn render_grid(&mut self, grid_area: Rect, buf: &mut Buffer) {
         let game = self.game.as_ref().unwrap();
 
         const GRID_WIDTH: usize = 9;
