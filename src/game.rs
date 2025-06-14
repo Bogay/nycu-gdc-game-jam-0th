@@ -18,7 +18,7 @@ pub enum GameState {
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
-    enemy_ready2spawn: Vec<(Enemy, usize)>,
+    pub enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]

@@ -4,6 +4,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
     style::{Color, Style, Stylize},
+    text::Line,
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
 use tui_big_text::{BigText, PixelSize};
@@ -40,20 +41,43 @@ impl Widget for &mut App {
                 let [left_area, info_panel_area] =
                     Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Fill(1)])
                         .areas(inner_block);
-                let [grid_area, merge_panel] =
+                let [grid_area, merge_panel_area] =
                     Layout::vertical([Constraint::Ratio(3, 4), Constraint::Fill(1)])
                         .areas(left_area);
 
                 self.render_grid(grid_area, buf);
-                self.render_logs(info_panel_area, buf);
-                self.render_merge_panel(merge_panel, buf);
+                self.render_info_panel(info_panel_area, buf);
+                self.render_merge_panel(merge_panel_area, buf);
             }
         }
     }
 }
 
 impl App {
-    fn render_logs(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_info_panel(&mut self, area: Rect, buf: &mut Buffer) {
+        let [status_panel_area, events_panel_area] =
+            Layout::vertical([Constraint::Max(3 + 2), Constraint::Fill(1)]).areas(area);
+        self.render_status_panel(status_panel_area, buf);
+        self.render_events_panel(events_panel_area, buf);
+    }
+
+    fn render_status_panel(&mut self, area: Rect, buf: &mut Buffer) {
+        let game = self.game.as_ref().unwrap();
+        let block = Block::bordered().title("Status");
+        let inner_block = block.inner(area);
+        block.render(area, buf);
+        Paragraph::new(vec![
+            Line::raw(format!("Coin: {}", game.coin)),
+            Line::raw(format!("Level: {}", game.level)),
+            Line::raw(format!(
+                "Remain Enemy: {}",
+                game.board.enemy_ready2spawn.len()
+            )),
+        ])
+        .render(inner_block, buf);
+    }
+
+    fn render_events_panel(&mut self, area: Rect, buf: &mut Buffer) {
         let block = Block::bordered().title("Events");
         let inner_block = block.inner(area);
         block.render(area, buf);
