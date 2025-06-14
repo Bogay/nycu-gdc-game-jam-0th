@@ -22,12 +22,24 @@ impl Widget for &mut App {
         let inner_block = block.inner(area);
         block.render(area, buf);
 
+        let [left_area, info_panel_area] =
+            Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
+                .areas(inner_block);
+        let [grid_area, action_panel_area] =
+            Layout::vertical([Constraint::Ratio(3, 4), Constraint::Percentage(0)]).areas(left_area);
+
+        self.render_grid(buf, grid_area);
+    }
+}
+
+impl App {
+    fn render_grid(&mut self, buf: &mut Buffer, grid_area: Rect) {
         const GRID_WIDTH: usize = 9;
         const GRID_HEIGHT: usize = 5;
 
         let row_constraints = vec![Constraint::Max(10); GRID_HEIGHT];
         let grid_layouts = Layout::vertical(row_constraints)
-            .split(inner_block)
+            .split(grid_area)
             .iter()
             .map(|&a| {
                 let col_constrains = vec![Constraint::Max(20); GRID_WIDTH];
