@@ -4,7 +4,7 @@ use rand::thread_rng;
 use serde::Deserialize;
 use std::clone;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub enum GameState {
     #[default]
     Init,
@@ -13,14 +13,14 @@ pub enum GameState {
     End,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
     enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Ally {
     pub element: AllyElement,
     pub second_element: Option<AllyElement>,
@@ -34,7 +34,7 @@ pub struct Ally {
     pub special_value: f32,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 pub enum AllyElement {
     #[default]
     Basic,
@@ -44,7 +44,7 @@ pub enum AllyElement {
     Critical,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Enemy {
     pub hp: usize,
     pub move_speed: f32,
@@ -53,7 +53,7 @@ pub struct Enemy {
     pub slow_list: Vec<Debuff>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Debuff {
     pub value: usize,
     pub cooldown: f32,
@@ -66,8 +66,8 @@ enum Direction {
     Right,
 }
 
-#[derive(Deserialize, Clone, Debug)]
-struct AllyConfig {
+#[derive(Debug, Clone, Deserialize)]
+pub struct AllyConfig {
     atk: Option<usize>,
     range: Option<usize>,
     aoe_range: Option<usize>,
@@ -78,8 +78,8 @@ struct AllyConfig {
     special_value: Option<f32>,
 }
 
-#[derive(Deserialize, Debug)]
-struct ConfigFile {
+#[derive(Debug, Clone, Deserialize)]
+pub struct ConfigFile {
     default: AllyConfig,
     basic: Option<AllyConfig>,
     slow: Option<AllyConfig>,
@@ -88,7 +88,7 @@ struct ConfigFile {
     critical: Option<AllyConfig>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Game {
     pub level: usize,
     pub game_state: GameState,
@@ -128,37 +128,24 @@ impl Game {
 
     // This should be outside the function, or make it pub(crate) if needed elsewhere
     fn default_config_file(&self) -> ConfigFile {
+        let default_ally_config = AllyConfig {
+            atk: Some(10),
+            range: Some(2),
+            aoe_range: Some(0),
+            level: Some(1),
+            atk_speed: Some(1.0),
+            attack_cooldown: Some(0.0),
+            levelup_ratio: Some(1.5),
+            special_value: Some(2.0),
+        };
+
         ConfigFile {
-            default: AllyConfig {
-                atk: Some(10),
-                range: Some(2),
-                aoe_range: Some(0),
-                level: Some(1),
-                atk_speed: Some(1.0),
-                attack_cooldown: Some(0.0),
-                levelup_ratio: Some(1.5),
-                special_value: Some(2.0),
-            },
-            basic: Some(self.config.as_ref().map_or_else(
-                || self.default_config_file().default.clone(),
-                |cfg| cfg.default.clone(),
-            )),
-            slow: Some(self.config.as_ref().map_or_else(
-                || self.default_config_file().default.clone(),
-                |cfg| cfg.default.clone(),
-            )),
-            aoe: Some(self.config.as_ref().map_or_else(
-                || self.default_config_file().default.clone(),
-                |cfg| cfg.default.clone(),
-            )),
-            dot: Some(self.config.as_ref().map_or_else(
-                || self.default_config_file().default.clone(),
-                |cfg| cfg.default.clone(),
-            )),
-            critical: Some(self.config.as_ref().map_or_else(
-                || self.default_config_file().default.clone(),
-                |cfg| cfg.default.clone(),
-            )),
+            default: default_ally_config.clone(),
+            basic: Some(default_ally_config.clone()),
+            slow: Some(default_ally_config.clone()),
+            aoe: Some(default_ally_config.clone()),
+            dot: Some(default_ally_config.clone()),
+            critical: Some(default_ally_config.clone()),
         }
     }
 
@@ -508,18 +495,42 @@ impl Game {
                 }
             }
         }
-        if let Some(&(i, j)) = empty_cells.choose(&mut thread_rng()) {
+        if let Some(&(i, j)) = empty_cells.choose(&mut rand::rng()) {
+            // Randomly pick an AllyElement variant
+            let elements = [
+                AllyElement::Basic,
+                AllyElement::Slow,
+                AllyElement::Aoe,
+                AllyElement::Dot,
+                AllyElement::Critical,
+            ];
+            let element = elements.choose(&mut rand::rng()).unwrap().clone();
+
+            // Get config (fall back to default if not loaded)
+            let config = self
+                .config
+                .as_ref()
+                .map(|c| c.clone())
+                .unwrap_or_else(|| self.load_config());
+            let ally_config = match element {
+                AllyElement::Basic => config.basic.as_ref().unwrap_or(&config.default),
+                AllyElement::Slow => config.slow.as_ref().unwrap_or(&config.default),
+                AllyElement::Aoe => config.aoe.as_ref().unwrap_or(&config.default),
+                AllyElement::Dot => config.dot.as_ref().unwrap_or(&config.default),
+                AllyElement::Critical => config.critical.as_ref().unwrap_or(&config.default),
+            };
+
             let ally = Ally {
-                element: AllyElement::Basic,
+                element,
                 second_element: None,
-                atk: 10,
-                range: 1,
-                aoe_range: 0,
-                level: 1,
-                atk_speed: 1.0,
-                attack_cooldown: 0.0,
-                levelup_ratio: 1.5,
-                special_value: 1.5,
+                atk: ally_config.atk.unwrap_or(10),
+                range: ally_config.range.unwrap_or(1),
+                aoe_range: ally_config.aoe_range.unwrap_or(0),
+                level: ally_config.level.unwrap_or(1),
+                atk_speed: ally_config.atk_speed.unwrap_or(1.0),
+                attack_cooldown: ally_config.attack_cooldown.unwrap_or(0.0),
+                levelup_ratio: ally_config.levelup_ratio.unwrap_or(1.5),
+                special_value: ally_config.special_value.unwrap_or(1.5),
             };
             self.board.ally_grid[i][j] = Some(ally);
         }
