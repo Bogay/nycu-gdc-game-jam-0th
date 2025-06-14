@@ -1,5 +1,3 @@
-use std::{collections, ops::SubAssign};
-
 use crate::app::App;
 use crate::game::AllyElement;
 use ratatui::{
@@ -8,6 +6,9 @@ use ratatui::{
     style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Paragraph, Widget},
 };
+use tui_big_text::{BigText, PixelSize};
+
+const APP_NAME: &str = "Brainrot TD";
 
 impl Widget for &mut App {
     /// Renders the user interface widgets.
@@ -17,20 +18,34 @@ impl Widget for &mut App {
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui/ratatui/tree/master/examples
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = Block::bordered()
-            .title("Brainrot TD")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded);
-        let inner_block = block.inner(area);
-        block.render(area, buf);
+        match self.mode {
+            crate::app::AppMode::Menu => {
+                let big_text = BigText::builder()
+                    .style(Style::new().blue())
+                    .lines(vec![APP_NAME.into()])
+                    .centered()
+                    .build();
+                big_text.render(area, buf);
+            }
 
-        let [left_area, info_panel_area] =
-            Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
-                .areas(inner_block);
-        let [grid_area, action_panel_area] =
-            Layout::vertical([Constraint::Ratio(3, 4), Constraint::Percentage(0)]).areas(left_area);
+            crate::app::AppMode::InGame => {
+                let block = Block::bordered()
+                    .title(APP_NAME)
+                    .title_alignment(Alignment::Center)
+                    .border_type(BorderType::Rounded);
+                let inner_block = block.inner(area);
+                block.render(area, buf);
 
-        self.render_grid(buf, grid_area);
+                let [left_area, info_panel_area] =
+                    Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
+                        .areas(inner_block);
+                let [grid_area, action_panel_area] =
+                    Layout::vertical([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
+                        .areas(left_area);
+
+                self.render_grid(buf, grid_area);
+            }
+        }
     }
 }
 

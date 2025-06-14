@@ -12,14 +12,14 @@ pub enum GameState {
     End,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
     enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Ally {
     pub element: AllyElement,
     pub second_element: Option<AllyElement>,
@@ -31,8 +31,9 @@ pub struct Ally {
     pub attack_cooldown: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum AllyElement {
+    #[default]
     Basic,
     Slow,
     Aoe,
@@ -40,7 +41,7 @@ pub enum AllyElement {
     Critical,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Enemy {
     pub hp: usize,
     pub move_speed: f32,
@@ -90,10 +91,9 @@ impl Game {
 
     pub fn init_game(&mut self) {
         self.enemy_spawn();
-        todo!()
     }
 
-    fn update(&mut self) {
+    pub fn update(&mut self) {
         // at 60 FPS, called every frame
         self.ally_update();
         self.enemy_update();

@@ -1,6 +1,6 @@
 use crate::{
     event::{AppEvent, Event, EventHandler},
-    game::Game,
+    game::{Ally, AllyElement, Game},
 };
 use ratatui::{
     DefaultTerminal,
@@ -17,6 +17,13 @@ pub struct App {
     /// Event handler.
     pub events: EventHandler,
     pub game: Option<Game>,
+    pub mode: AppMode,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AppMode {
+    Menu,
+    InGame,
 }
 
 impl Default for App {
@@ -26,6 +33,7 @@ impl Default for App {
             counter: 0,
             events: EventHandler::new(),
             game: None,
+            mode: AppMode::Menu,
         }
     }
 }
@@ -56,6 +64,12 @@ impl App {
                 AppEvent::Increment => self.increment_counter(),
                 AppEvent::Decrement => self.decrement_counter(),
                 AppEvent::Quit => self.quit(),
+                AppEvent::StartGame => {
+                    assert_eq!(AppMode::Menu, self.mode);
+                    self.game = Some(Game::new());
+                    self.game.as_mut().unwrap().init_game();
+                    self.mode = AppMode::InGame;
+                }
             },
         }
         Ok(())
@@ -68,8 +82,9 @@ impl App {
             KeyCode::Char('c' | 'C') if key_event.modifiers == KeyModifiers::CONTROL => {
                 self.events.send(AppEvent::Quit)
             }
-            KeyCode::Right => self.events.send(AppEvent::Increment),
-            KeyCode::Left => self.events.send(AppEvent::Decrement),
+            KeyCode::Enter if matches!(self.mode, AppMode::Menu) => {
+                self.events.send(AppEvent::StartGame);
+            }
             // Other handlers you could add here.
             _ => {}
         }
@@ -80,7 +95,11 @@ impl App {
     ///
     /// The tick event is where you can update the state of your application with any logic that
     /// needs to be updated at a fixed frame rate. E.g. polling a server, updating an animation.
-    pub fn tick(&self) {}
+    pub fn tick(&mut self) {
+        if let Some(game) = self.game.as_mut() {
+            game.update();
+        }
+    }
 
     /// Set running to false to quit the application.
     pub fn quit(&mut self) {
