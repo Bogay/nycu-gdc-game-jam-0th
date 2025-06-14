@@ -2,7 +2,7 @@ use rand::prelude::IndexedRandom;
 use std::clone;
 
 #[derive(Debug, Default)]
-enum GameState {
+pub enum GameState {
     #[default]
     Init,
     Running,
@@ -38,7 +38,7 @@ pub enum AllyElement {
 }
 
 #[derive(Debug, Clone)]
-struct Enemy {
+pub struct Enemy {
     pub hp: usize,
     pub move_speed: f32,
     pub position: f32, // from 0 to 24
