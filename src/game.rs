@@ -14,6 +14,7 @@ pub enum GameState {
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
+    //enemies_ready2spawn: Vec<Enemy>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -213,9 +214,42 @@ impl Game {
         }
     }
 
-    //drop the select ally on empty grid or merge on allay
+    // Drop the selected ally on an empty grid or merge with an ally at the cursor
     fn cursor_drop(&mut self) {
-        todo!()
+        if let Some((sel_i, sel_j)) = self.selected {
+            let (cur_i, cur_j) = self.cursor;
+
+            if (sel_i, sel_j) == (cur_i, cur_j) {
+                return;
+            }
+            let ally1 = self.board.ally_grid[sel_i][sel_j].take();
+
+            if let Some(ally1) = ally1 {
+                if let Some(Some(ally2)) = self
+                    .board
+                    .ally_grid
+                    .get(cur_i)
+                    .and_then(|row| row.get(cur_j))
+                {
+                    if let Some(merged) = self.ally_merge(ally1.clone(), ally2.clone()) {
+                        // Place merged ally at cursor, clear selected cell
+                        self.board.ally_grid[cur_i][cur_j] = Some(merged);
+                        self.selected = None;
+                    } else {
+                        // Merge failed, return ally1 to its original position
+                        self.board.ally_grid[sel_i][sel_j] = Some(ally1);
+                        // Optionally, keep selection or clear it
+                    }
+                } else {
+                    // No ally at cursor, move selected ally to cursor position
+                    self.board.ally_grid[cur_i][cur_j] = Some(ally1);
+                    self.selected = None;
+                }
+            } else {
+                // No ally at selected position, clear selection
+                self.selected = None;
+            }
+        }
     }
 
     fn enemy_grid_position(ene: Enemy) -> (f32, f32) {
