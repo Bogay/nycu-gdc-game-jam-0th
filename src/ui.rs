@@ -65,7 +65,7 @@ impl App {
         let game = self.game.as_ref().unwrap();
         for row_i in 1..GRID_HEIGHT - 1 {
             for col_i in 1..GRID_WIDTH - 1 {
-                let ally = &game.borad.ally_grid[row_i - 1][col_i - 1];
+                let ally = &game.board.ally_grid[row_i - 1][col_i - 1];
                 let text = match ally {
                     Some(a) => a.level.to_string(),
                     None => "".to_string(),
@@ -96,7 +96,7 @@ impl App {
             .chain((1..GRID_HEIGHT - 1).rev().map(|y| (y, 0)))
             .collect::<Vec<_>>();
         let mut counts = [[0; GRID_WIDTH]; GRID_HEIGHT];
-        for e in &game.borad.enemies {
+        for e in &game.board.enemies {
             let pos_i = e.position.floor() as usize;
             let (grid_y, grid_x) = grid_indices[pos_i];
             counts[grid_y][grid_x] += 1;
