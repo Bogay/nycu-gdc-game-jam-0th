@@ -1,0 +1,26 @@
+[general]
+atk = 10
+range = 2
+aoe_range = 0
+atk_speed = 1.0
+levelup_ratio = 1.5
+special_value = 0
+
+[allies.basic]
+
+
+[allies.slow]
+atk = 7
+atk_speed = 0.8
+special_value = 0
+
+[allies.AOE]
+atk = 5
+aoe_range = 1
+
+[allies.Dot]
+atk = 7
+special_value = 3
+
+[allies.Critical]
+special_value = 2.0

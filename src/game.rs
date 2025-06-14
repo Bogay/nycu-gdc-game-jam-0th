@@ -1,6 +1,7 @@
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use serde::Deserialize;
 use std::clone;
 
 #[derive(Debug, Default)]
@@ -29,6 +30,8 @@ pub struct Ally {
     pub level: usize,
     pub atk_speed: f32,
     pub attack_cooldown: f32,
+    pub levelup_ratio: f32,
+    pub special_value: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -63,6 +66,28 @@ enum Direction {
     Right,
 }
 
+#[derive(Deserialize, Clone, Debug)]
+struct AllyConfig {
+    atk: Option<usize>,
+    range: Option<usize>,
+    aoe_range: Option<usize>,
+    level: Option<usize>,
+    atk_speed: Option<f32>,
+    attack_cooldown: Option<f32>,
+    levelup_ratio: Option<f32>,
+    special_value: Option<f32>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ConfigFile {
+    default: AllyConfig,
+    basic: Option<AllyConfig>,
+    slow: Option<AllyConfig>,
+    aoe: Option<AllyConfig>,
+    dot: Option<AllyConfig>,
+    critical: Option<AllyConfig>,
+}
+
 #[derive(Debug)]
 pub struct Game {
     pub level: usize,
@@ -71,6 +96,7 @@ pub struct Game {
     pub cursor: (usize, usize),
     pub selected: Option<(usize, usize)>,
     pub coin: usize,
+    pub config: Option<ConfigFile>,
 }
 
 impl Game {
@@ -86,11 +112,59 @@ impl Game {
                 enemies: Vec::new(),
                 enemy_ready2spawn: Vec::new(),
             },
+            config: None,
+        }
+    }
+
+    pub fn load_config(&self) -> ConfigFile {
+        use std::fs;
+
+        let config_file = fs::read_to_string("config.toml");
+        match config_file {
+            Ok(content) => toml::from_str(&content).unwrap_or_else(|_| self.default_config_file()),
+            Err(_) => self.default_config_file(),
+        }
+    }
+
+    // This should be outside the function, or make it pub(crate) if needed elsewhere
+    fn default_config_file(&self) -> ConfigFile {
+        ConfigFile {
+            default: AllyConfig {
+                atk: Some(10),
+                range: Some(2),
+                aoe_range: Some(0),
+                level: Some(1),
+                atk_speed: Some(1.0),
+                attack_cooldown: Some(0.0),
+                levelup_ratio: Some(1.5),
+                special_value: Some(2.0),
+            },
+            basic: Some(self.config.as_ref().map_or_else(
+                || self.default_config_file().default.clone(),
+                |cfg| cfg.default.clone(),
+            )),
+            slow: Some(self.config.as_ref().map_or_else(
+                || self.default_config_file().default.clone(),
+                |cfg| cfg.default.clone(),
+            )),
+            aoe: Some(self.config.as_ref().map_or_else(
+                || self.default_config_file().default.clone(),
+                |cfg| cfg.default.clone(),
+            )),
+            dot: Some(self.config.as_ref().map_or_else(
+                || self.default_config_file().default.clone(),
+                |cfg| cfg.default.clone(),
+            )),
+            critical: Some(self.config.as_ref().map_or_else(
+                || self.default_config_file().default.clone(),
+                |cfg| cfg.default.clone(),
+            )),
         }
     }
 
     pub fn init_game(&mut self) {
         self.enemy_spawn();
+        self.config = Some(self.load_config());
     }
 
     pub fn update(&mut self) {
@@ -444,6 +518,8 @@ impl Game {
                 level: 1,
                 atk_speed: 1.0,
                 attack_cooldown: 0.0,
+                levelup_ratio: 1.5,
+                special_value: 1.5,
             };
             self.board.ally_grid[i][j] = Some(ally);
         }
@@ -471,6 +547,8 @@ impl Game {
                 level: ally1.level + 1,
                 atk_speed: ally1.atk_speed * 1.5,
                 attack_cooldown: 0.0,
+                levelup_ratio: 1.5,
+                special_value: 1.5,
             })
         } else if ally1.second_element.is_none() && ally2.second_element.is_none() {
             // Merge two no second element allies (no upgrade)
@@ -483,6 +561,8 @@ impl Game {
                 level: ally1.level,
                 atk_speed: ally1.atk_speed,
                 attack_cooldown: 0.0,
+                levelup_ratio: 1.5,
+                special_value: 1.5,
             })
         } else {
             None
