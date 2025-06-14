@@ -1,3 +1,5 @@
+use std::{collections, ops::SubAssign};
+
 use crate::app::App;
 use crate::game::AllyElement;
 use ratatui::{
@@ -38,7 +40,7 @@ impl App {
         const GRID_HEIGHT: usize = 5;
 
         let row_constraints = vec![Constraint::Max(10); GRID_HEIGHT];
-        let grid_layouts = Layout::vertical(row_constraints)
+        let grid = Layout::vertical(row_constraints)
             .split(grid_area)
             .iter()
             .map(|&a| {
@@ -46,11 +48,11 @@ impl App {
                 Layout::horizontal(col_constrains).split(a).to_vec()
             })
             .collect::<Vec<_>>();
-        assert_eq!(GRID_HEIGHT, grid_layouts.len());
-        assert_eq!(GRID_WIDTH, grid_layouts[0].len());
+        assert_eq!(GRID_HEIGHT, grid.len());
+        assert_eq!(GRID_WIDTH, grid[0].len());
 
         // render all cells first
-        for row in &grid_layouts {
+        for row in &grid {
             for cell in row {
                 let p = Paragraph::new("")
                     .block(Block::bordered())
@@ -77,11 +79,39 @@ impl App {
                     None => Style::new().bg(Color::Gray),
                 };
                 let block = Block::bordered().style(style);
-                let p = Paragraph::new(text).block(block);
+                let p = Paragraph::new(text)
+                    .block(block)
+                    .alignment(Alignment::Center);
 
-                let rect = grid_layouts[row_i][col_i].clone();
+                let rect = grid[row_i][col_i].clone();
                 p.render(rect, buf);
             }
+        }
+
+        // render enemies
+        let grid_indices = (0..GRID_WIDTH)
+            .map(|x| (0, x))
+            .chain((1..GRID_HEIGHT).map(|y| (y, GRID_WIDTH - 1)))
+            .chain((0..GRID_WIDTH - 1).rev().map(|x| (GRID_HEIGHT - 1, x)))
+            .chain((1..GRID_HEIGHT - 1).rev().map(|y| (y, 0)))
+            .collect::<Vec<_>>();
+        let mut counts = [[0; GRID_WIDTH]; GRID_HEIGHT];
+        for e in &game.borad.enemies {
+            let pos_i = e.position.floor() as usize;
+            let (grid_y, grid_x) = grid_indices[pos_i];
+            counts[grid_y][grid_x] += 1;
+        }
+        for &(grid_y, grid_x) in &grid_indices {
+            let cell = grid[grid_y][grid_x];
+            let text = match counts[grid_y][grid_x] {
+                0 => "".to_string(),
+                c @ _ => format!("{c}"),
+            };
+            let p = Paragraph::new(text)
+                .block(Block::bordered())
+                .alignment(Alignment::Center)
+                .style(Style::new().gray());
+            p.render(cell.clone(), buf);
         }
     }
 }
