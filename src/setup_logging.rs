@@ -1,3 +1,5 @@
+// ref: https://ratatui.rs/recipes/apps/log-with-tracing/
+
 use color_eyre::eyre::{Context, Result};
 use std::path::PathBuf;
 use std::sync::LazyLock;
