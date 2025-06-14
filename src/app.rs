@@ -1,4 +1,7 @@
-use crate::event::{AppEvent, Event, EventHandler};
+use crate::{
+    event::{AppEvent, Event, EventHandler},
+    game::Game,
+};
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
@@ -13,6 +16,7 @@ pub struct App {
     pub counter: u8,
     /// Event handler.
     pub events: EventHandler,
+    pub game: Option<Game>,
 }
 
 impl Default for App {
@@ -21,6 +25,7 @@ impl Default for App {
             running: true,
             counter: 0,
             events: EventHandler::new(),
+            game: None,
         }
     }
 }
