@@ -59,7 +59,8 @@ pub struct Debuff {
     pub cooldown: f32,
 }
 
-enum Direction {
+#[derive(Debug, Clone)]
+pub enum Direction {
     Up,
     Down,
     Left,

@@ -70,6 +70,18 @@ impl App {
                     self.game.as_mut().unwrap().init_game();
                     self.mode = AppMode::InGame;
                 }
+                AppEvent::MoveCursor(direction) => {
+                    assert!(self.game.is_some());
+                    self.game.as_mut().unwrap().cursor_move(direction);
+                }
+                AppEvent::ToggleSelection => {
+                    assert!(self.game.is_some());
+                    self.game.as_mut().unwrap().cursor_select();
+                }
+                AppEvent::BuyAlly => {
+                    assert!(self.game.is_some());
+                    self.game.as_mut().unwrap().buy_ally();
+                }
             },
         }
         Ok(())
@@ -88,6 +100,29 @@ impl App {
             // Other handlers you could add here.
             _ => {}
         }
+
+        if matches!(self.mode, AppMode::InGame) {
+            match key_event.code {
+                KeyCode::Up => self
+                    .events
+                    .send(AppEvent::MoveCursor(crate::game::Direction::Up)),
+                KeyCode::Down => self
+                    .events
+                    .send(AppEvent::MoveCursor(crate::game::Direction::Down)),
+                KeyCode::Left => self
+                    .events
+                    .send(AppEvent::MoveCursor(crate::game::Direction::Left)),
+                KeyCode::Right => self
+                    .events
+                    .send(AppEvent::MoveCursor(crate::game::Direction::Right)),
+                KeyCode::Enter => self.events.send(AppEvent::ToggleSelection),
+                KeyCode::Char(' ') => {
+                    self.events.send(AppEvent::BuyAlly);
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 

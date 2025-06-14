@@ -1,5 +1,8 @@
 use color_eyre::eyre::WrapErr;
-use ratatui::crossterm::event::{self, Event as CrosstermEvent};
+use ratatui::{
+    crossterm::event::{self, Event as CrosstermEvent},
+    layout::Direction,
+};
 use std::{
     sync::mpsc,
     thread,
@@ -41,6 +44,10 @@ pub enum AppEvent {
     Quit,
     /// Start the game.
     StartGame,
+    /// Move cursor in game
+    MoveCursor(crate::game::Direction),
+    ToggleSelection,
+    BuyAlly,
 }
 
 /// Terminal event handler.
