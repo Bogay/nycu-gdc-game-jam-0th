@@ -1,0 +1,12 @@
+[package]
+name = "nycu-gdc-game-jam-0th"
+version = "0.1.0"
+description = "Submission to NYCU GDC Game Jam 0thh"
+authors = ["Bogay <pojay11523@gmail.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+color-eyre = "0.6.3"
