@@ -3,6 +3,9 @@ pub struct Game {
     pub level: usize,
     pub game_state: GameState,
     pub borad: Board,
+    pub cursor: (usize, usize),
+    pub selected: Option<(usize, usize)>,
+    pub coin: usize,
 }
 
 #[derive(Debug, Default)]
