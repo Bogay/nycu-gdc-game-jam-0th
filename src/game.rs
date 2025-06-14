@@ -1,4 +1,6 @@
 use rand::prelude::IndexedRandom;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::clone;
 
 #[derive(Debug, Default)]
@@ -14,7 +16,7 @@ pub enum GameState {
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
-    //enemies_ready2spawn: Vec<Enemy>,
+    enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,12 +83,322 @@ impl Game {
             board: Board {
                 ally_grid: vec![vec![None; 7]; 3],
                 enemies: Vec::new(),
+                enemy_ready2spawn: Vec::new(),
             },
         }
     }
 
     pub fn init_game() {
         todo!()
+    }
+
+    fn update(&mut self) {
+        // at 60 FPS, called every frame
+        self.ally_update();
+        self.enemy_update();
+    }
+
+    fn ally_update(&mut self) {
+        // Collect positions of allies that are ready to attack after updating cooldowns
+        let mut ready_to_attack = Vec::new();
+
+        for (i, row) in self.board.ally_grid.iter_mut().enumerate() {
+            for (j, cell) in row.iter_mut().enumerate() {
+                if let Some(ally) = cell {
+                    // Decrease attack_cooldown if above zero
+                    if ally.attack_cooldown > 0.0 {
+                        ally.attack_cooldown -= 1.0 / 60.0;
+                        if ally.attack_cooldown < 0.0 {
+                            ally.attack_cooldown = 0.0;
+                        }
+                    }
+                    // If cooldown is zero or less, mark for attack
+                    if ally.attack_cooldown <= 0.0 {
+                        ready_to_attack.push((i, j));
+                    }
+                }
+            }
+        }
+
+        let mut atk_speeds = Vec::new();
+        for &(i, j) in &ready_to_attack {
+            if let Some(ally) = self.board.ally_grid[i][j].as_ref() {
+                atk_speeds.push((i, j, ally.atk_speed));
+            }
+        }
+
+        for (i, j, atk_speed) in atk_speeds {
+            self.ally_ready2attack((i, j));
+            if let Some(ally) = self.board.ally_grid[i][j].as_mut() {
+                ally.attack_cooldown = atk_speed;
+            }
+        }
+    }
+
+    fn ally_ready2attack(&mut self, pos: (usize, usize)) {
+        let (i, j) = pos;
+        if let Some(ally) = self.board.ally_grid[i][j].as_ref() {
+            if ally.element == AllyElement::Aoe || ally.second_element == Some(AllyElement::Aoe) {
+                self.ally_AOE_damage(pos);
+            } else {
+                self.ally_damage(pos);
+            }
+        }
+    }
+
+    // Find the nearest enemy within range and attack it
+    // The ally position is its (i, j) on the grid (3x7), which is mapped to (x, y) in world space as (j+1, i+1)
+    // get the enemys position from
+    fn ally_damage(&mut self, _pos: (usize, usize)) {
+        let (i, j) = _pos;
+        let ally_position = (j as f32 + 1.0, i as f32 + 1.0);
+
+        // Find the nearest enemy within range
+        let mut nearest_enemy_idx: Option<usize> = None;
+        let mut nearest_dist: f32 = f32::MAX;
+        let mut ally_range = 1;
+        let mut ally_atk = 0;
+        let mut first_element = AllyElement::Basic;
+        let mut second_element = None;
+
+        if let Some(ally) = self.board.ally_grid[i][j].as_ref() {
+            ally_range = ally.range;
+            ally_atk = ally.atk;
+            first_element = ally.element.clone();
+            second_element = ally.second_element.clone();
+        } else {
+            return;
+        }
+
+        // Use iterator methods to find the nearest enemy within range in a functional style
+        nearest_enemy_idx = self
+            .board
+            .enemies
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, enemy)| {
+                let enemy_pos = Game::enemy_grid_position(enemy.clone());
+                let dx = ally_position.0 - enemy_pos.0;
+                let dy = ally_position.1 - enemy_pos.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist <= ally_range as f32 {
+                    Some((idx, dist))
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .map(|(idx, _)| idx);
+
+        // Prepare damage value (with critical hit if applicable)
+        let mut damage = ally_atk;
+        if first_element == AllyElement::Critical || second_element == Some(AllyElement::Critical) {
+            damage = (damage as f32 * 2.0) as usize;
+        }
+        if let Some(enemy_idx) = nearest_enemy_idx {
+            let enemy = &mut self.board.enemies[enemy_idx];
+
+            // Apply debuffs (first and second element, exclude AOE)
+            match first_element {
+                AllyElement::Slow => {
+                    enemy.slow_list.push(Debuff {
+                        value: 1,
+                        cooldown: 1.0,
+                    });
+                }
+                AllyElement::Dot => {
+                    enemy.dot_list.push(Debuff {
+                        value: 2,
+                        cooldown: 2.0,
+                    });
+                }
+                _ => {}
+            }
+            if let Some(second) = &second_element {
+                match second {
+                    AllyElement::Slow => {
+                        enemy.slow_list.push(Debuff {
+                            value: 1,
+                            cooldown: 1.0,
+                        });
+                    }
+                    AllyElement::Dot => {
+                        enemy.dot_list.push(Debuff {
+                            value: 2,
+                            cooldown: 2.0,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+
+            // Apply direct damage, with critical hit if applicable
+
+            enemy.hp = enemy.hp.saturating_sub(damage);
+        }
+    }
+
+    fn ally_AOE_damage(&mut self, _pos: (usize, usize)) {
+        let (i, j) = _pos;
+        let ally_position = (j as f32 + 1.0, i as f32 + 1.0);
+
+        // Find the nearest enemy within range
+        let mut nearest_enemy_idx: Option<usize> = None;
+        let mut nearest_dist: f32 = f32::MAX;
+        let mut ally_range = 1;
+        let mut ally_atk = 0;
+        let mut first_element = AllyElement::Basic;
+        let mut second_element = None;
+
+        if let Some(ally) = self.board.ally_grid[i][j].as_ref() {
+            ally_range = ally.range;
+            ally_atk = ally.atk;
+            first_element = ally.element.clone();
+            second_element = ally.second_element.clone();
+        } else {
+            return;
+        }
+
+        nearest_enemy_idx = self
+            .board
+            .enemies
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, enemy)| {
+                let enemy_pos = Game::enemy_grid_position(enemy.clone());
+                let dx = ally_position.0 - enemy_pos.0;
+                let dy = ally_position.1 - enemy_pos.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist <= ally_range as f32 {
+                    Some((idx, dist))
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .map(|(idx, _)| idx);
+
+        if let Some(enemy_idx) = nearest_enemy_idx {
+            let enemy_pos = {
+                let enemy = &self.board.enemies[enemy_idx];
+                Game::enemy_grid_position(enemy.clone())
+            };
+
+            // Prepare damage value (with critical hit if applicable)
+            let mut damage = ally_atk;
+            if first_element == AllyElement::Critical
+                || second_element == Some(AllyElement::Critical)
+            {
+                damage = (damage as f32 * 2.0) as usize;
+            }
+
+            // For all enemies within aoe_range of the target enemy, apply damage and debuffs
+            let aoe_range = if let Some(ally) = self.board.ally_grid[i][j].as_ref() {
+                ally.aoe_range
+            } else {
+                0
+            };
+
+            for enemy in self.board.enemies.iter_mut() {
+                let pos = Game::enemy_grid_position(enemy.clone());
+                let dx = enemy_pos.0 - pos.0;
+                let dy = enemy_pos.1 - pos.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist <= aoe_range as f32 {
+                    // Apply debuffs (first and second element, exclude AOE)
+                    match first_element {
+                        AllyElement::Slow => {
+                            enemy.slow_list.push(Debuff {
+                                value: 1,
+                                cooldown: 1.0,
+                            });
+                        }
+                        AllyElement::Dot => {
+                            enemy.dot_list.push(Debuff {
+                                value: 2,
+                                cooldown: 2.0,
+                            });
+                        }
+                        _ => {}
+                    }
+                    if let Some(second) = &second_element {
+                        match second {
+                            AllyElement::Slow => {
+                                enemy.slow_list.push(Debuff {
+                                    value: 1,
+                                    cooldown: 1.0,
+                                });
+                            }
+                            AllyElement::Dot => {
+                                enemy.dot_list.push(Debuff {
+                                    value: 2,
+                                    cooldown: 2.0,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Apply damage
+                    enemy.hp = enemy.hp.saturating_sub(damage);
+                }
+            }
+        }
+    }
+
+    fn enemy_update(&mut self) {
+        // Update spawn timers and spawn enemies if ready
+        let mut spawned = Vec::new();
+        for (idx, &mut (_, ref mut timer)) in self.board.enemy_ready2spawn.iter_mut().enumerate() {
+            if *timer > 0 {
+                *timer -= 1;
+            }
+            if *timer == 0 {
+                spawned.push(idx);
+            }
+        }
+        // Spawn enemies whose timers reached 0
+        for &idx in spawned.iter().rev() {
+            let (enemy, _) = self.board.enemy_ready2spawn.remove(idx);
+            self.board.enemies.push(enemy);
+        }
+
+        // Update all enemies
+        for enemy in self.board.enemies.iter_mut() {
+            // Apply DOT debuffs
+            let mut dot_damage = 0;
+            enemy.dot_list.retain_mut(|debuff| {
+                if debuff.cooldown > 0.0 {
+                    dot_damage += debuff.value;
+                    debuff.cooldown -= 1.0 / 60.0;
+                    debuff.cooldown > 0.0
+                } else {
+                    false
+                }
+            });
+            if dot_damage > 0 {
+                enemy.hp = enemy.hp.saturating_sub(dot_damage);
+            }
+
+            // Apply slow debuffs
+            let mut slow_factor = 1.0;
+            enemy.slow_list.retain_mut(|debuff| {
+                if debuff.cooldown > 0.0 {
+                    slow_factor *= 0.5_f32.powi(debuff.value as i32);
+                    debuff.cooldown -= 1.0 / 60.0;
+                    debuff.cooldown > 0.0
+                } else {
+                    false
+                }
+            });
+
+            // Move enemy
+            let move_amount = enemy.move_speed * slow_factor * (1.0 / 60.0);
+            enemy.position += move_amount;
+        }
+
+        // Remove dead enemies
+        self.board.enemies.retain(|enemy| enemy.hp > 0);
     }
 
     fn state_checkwin() {
@@ -111,9 +423,6 @@ impl Game {
 
     // Generate a level 1 ally on a random empty grid
     pub fn ally_spawn(&mut self) {
-        use rand::seq::SliceRandom;
-        use rand::thread_rng;
-
         let mut empty_cells = Vec::new();
         for (i, row) in self.board.ally_grid.iter().enumerate() {
             for (j, cell) in row.iter().enumerate() {
@@ -175,11 +484,6 @@ impl Game {
         } else {
             None
         }
-    }
-
-    //todo
-    fn ally_attack(&mut self) {
-        todo!()
     }
 
     //handle cursor movement
@@ -273,19 +577,20 @@ impl Game {
         grid_position
     }
 
-    fn enemy_getattack(&mut self) {
-        todo!()
-    }
-
-    fn enemy_die(&mut self) {
-        todo!()
-    }
-
-    fn enemy_update(&mut self) {
-        todo!()
-    }
-
-    fn enemy_move(&mut self) {
-        todo!()
+    fn enemy_spawn(&mut self) {
+        use rand::Rng;
+        let mut rng = thread_rng();
+        // Push 10 enemies with random spawn times (0..=100 ticks)
+        for _ in 0..10 {
+            let enemy = Enemy {
+                hp: 100,
+                move_speed: 1.0,
+                position: 0.0,
+                dot_list: Vec::new(),
+                slow_list: Vec::new(),
+            };
+            let spawn_time = rng.gen_range(0..=100);
+            self.board.enemy_ready2spawn.push((enemy, spawn_time));
+        }
     }
 }
