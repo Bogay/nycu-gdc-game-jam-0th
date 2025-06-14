@@ -39,6 +39,8 @@ pub enum AppEvent {
     Decrement,
     /// Quit the application.
     Quit,
+    /// Start the game.
+    StartGame,
 }
 
 /// Terminal event handler.
