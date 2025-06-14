@@ -12,3 +12,8 @@ ratatui = "0.29.0"
 color-eyre = "0.6.3"
 rand = "0.9.1"
 tui-big-text = "0.7.1"
+tui-logger = "0.17.3"
+tracing-error = "0.2.1"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+directories = "6.0.0"
