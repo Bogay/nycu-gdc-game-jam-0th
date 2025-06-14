@@ -51,6 +51,8 @@ impl Widget for &mut App {
 
 impl App {
     fn render_grid(&mut self, buf: &mut Buffer, grid_area: Rect) {
+        let game = self.game.as_ref().unwrap();
+
         const GRID_WIDTH: usize = 9;
         const GRID_HEIGHT: usize = 5;
 
@@ -77,7 +79,6 @@ impl App {
         }
 
         // render ally grid
-        let game = self.game.as_ref().unwrap();
         for row_i in 1..GRID_HEIGHT - 1 {
             for col_i in 1..GRID_WIDTH - 1 {
                 let ally = &game.board.ally_grid[row_i - 1][col_i - 1];
@@ -91,9 +92,9 @@ impl App {
                     Some(AllyElement::Dot) => Style::new().bg(Color::LightGreen),
                     Some(AllyElement::Aoe) => Style::new().bg(Color::LightRed),
                     Some(AllyElement::Critical) => Style::new().bg(Color::Yellow),
-                    None => Style::new().bg(Color::Gray),
+                    None => Style::new().bg(Color::Black),
                 };
-                let block = Block::bordered().style(style);
+                let block = Block::new().style(style);
                 let p = Paragraph::new(text)
                     .block(block)
                     .alignment(Alignment::Center);
@@ -112,7 +113,7 @@ impl App {
             .collect::<Vec<_>>();
         let mut counts = [[0; GRID_WIDTH]; GRID_HEIGHT];
         for e in &game.board.enemies {
-            let pos_i = e.position.floor() as usize;
+            let pos_i = e.position.floor() as usize % grid_indices.len();
             let (grid_y, grid_x) = grid_indices[pos_i];
             counts[grid_y][grid_x] += 1;
         }
@@ -127,6 +128,17 @@ impl App {
                 .alignment(Alignment::Center)
                 .style(Style::new().gray());
             p.render(cell.clone(), buf);
+        }
+
+        // render cursor and selected
+        let (cursor_y, cursor_x) = game.cursor;
+        let cursor_cell = grid[cursor_y + 1][cursor_x + 1].clone();
+        let block = Block::bordered().border_style(Style::new().magenta());
+        block.render(cursor_cell, buf);
+        if let Some((sele_y, sele_x)) = game.selected {
+            let sele_cell = grid[sele_y + 1][sele_x + 1].clone();
+            let block = Block::bordered().border_style(Style::new().magenta());
+            block.render(sele_cell, buf);
         }
     }
 }
