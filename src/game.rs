@@ -88,7 +88,8 @@ impl Game {
         }
     }
 
-    pub fn init_game() {
+    pub fn init_game(&mut self) {
+        self.enemy_spawn();
         todo!()
     }
 
@@ -96,6 +97,9 @@ impl Game {
         // at 60 FPS, called every frame
         self.ally_update();
         self.enemy_update();
+        if self.state_checkwin() {
+            self.game_state = GameState::End;
+        }
     }
 
     fn ally_update(&mut self) {
@@ -400,9 +404,8 @@ impl Game {
         // Remove dead enemies
         self.board.enemies.retain(|enemy| enemy.hp > 0);
     }
-
-    fn state_checkwin() {
-        todo!()
+    fn state_checkwin(&self) -> bool {
+        self.board.enemy_ready2spawn.is_empty() && self.board.enemies.is_empty()
     }
 
     fn state_pause() {
