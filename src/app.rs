@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{
     event::{AppEvent, Event, EventHandler},
     game::{Ally, AllyElement, Game},
@@ -6,6 +8,17 @@ use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
+use tui_logger::TuiWidgetState;
+
+/// Workaround to make TuiWidgetState `Debug`
+pub struct TuiWidgetStateWrapper(pub TuiWidgetState);
+
+impl Debug for TuiWidgetStateWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TuiWidgetStateWrapper ")?;
+        Ok(())
+    }
+}
 
 /// Application.
 #[derive(Debug)]
@@ -18,6 +31,7 @@ pub struct App {
     pub events: EventHandler,
     pub game: Option<Game>,
     pub mode: AppMode,
+    pub log_state: TuiWidgetStateWrapper,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +48,7 @@ impl Default for App {
             events: EventHandler::new(),
             game: None,
             mode: AppMode::Menu,
+            log_state: TuiWidgetStateWrapper(TuiWidgetState::default()),
         }
     }
 }

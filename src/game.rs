@@ -2,6 +2,7 @@ use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::clone;
+use tracing::info;
 
 #[derive(Debug, Default)]
 pub enum GameState {
@@ -422,6 +423,8 @@ impl Game {
         if self.coin >= 10 {
             self.coin -= 10;
             self.ally_spawn();
+        } else {
+            info!(required = 10, current = self.coin, "coin not enough!");
         }
     }
 
