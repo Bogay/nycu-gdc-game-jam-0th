@@ -425,7 +425,7 @@ impl Game {
     }
 
     // Generate a level 1 ally on a random empty grid
-    pub fn ally_spawn(&mut self) {
+    fn ally_spawn(&mut self) {
         let mut empty_cells = Vec::new();
         for (i, row) in self.board.ally_grid.iter().enumerate() {
             for (j, cell) in row.iter().enumerate() {
@@ -490,26 +490,43 @@ impl Game {
     }
 
     //handle cursor movement
-    fn cursor_move(&mut self, direction: Direction) {
+    pub fn cursor_move(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
-                self.cursor.0 -= 1;
+                if self.cursor.0 == 0 {
+                    self.cursor.0 = 2;
+                } else {
+                    self.cursor.0 -= 1;
+                }
             }
             Direction::Down => {
-                self.cursor.0 += 1;
+                if self.cursor.0 == 2 {
+                    self.cursor.0 = 0;
+                } else {
+                    self.cursor.0 += 1;
+                }
             }
             Direction::Left => {
-                self.cursor.1 -= 1;
+                if self.cursor.1 == 0 {
+                    self.cursor.1 = 6;
+                } else {
+                    self.cursor.1 -= 1;
+                }
             }
             Direction::Right => {
-                self.cursor.1 += 1;
+                if self.cursor.1 == 6 {
+                    self.cursor.1 = 0;
+                } else {
+                    self.cursor.1 += 1;
+                }
             }
         }
     }
 
     //select a ally if there is a ally at cursor
-    fn cursor_select(&mut self) {
+    pub fn cursor_select(&mut self) {
         if self.selected.is_some() {
+            self.cursor_drop();
             return;
         }
 
@@ -562,10 +579,8 @@ impl Game {
     fn enemy_grid_position(ene: Enemy) -> (f32, f32) {
         let grid_position: (f32, f32);
         if ene.position < 8.0 {
-            //at top
             grid_position = (ene.position as f32, 0.0)
         } else if ene.position < 12.0 {
-            // right
             grid_position = (8.0, ene.position as f32 - 8.0)
         } else if ene.position < 20.0 {
             // bottom
