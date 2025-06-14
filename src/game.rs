@@ -35,7 +35,36 @@ pub struct Ally {
     pub special_value: f32,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+impl Ally {
+    pub fn name(&self) -> &'static str {
+        let elems = match self.second_element {
+            None => vec![self.element],
+            Some(e) => vec![self.element, e],
+        };
+        match elems.as_slice() {
+            &[AllyElement::Basic] => "B",
+            &[AllyElement::Slow] => "S",
+            &[AllyElement::Aoe] => "A",
+            &[AllyElement::Dot] => "D",
+            &[AllyElement::Critical] => "C",
+            &[AllyElement::Basic, AllyElement::Slow] => "BS",
+            &[AllyElement::Basic, AllyElement::Aoe] => "BA",
+            &[AllyElement::Basic, AllyElement::Dot] => "BD",
+            &[AllyElement::Basic, AllyElement::Critical] => "BC",
+            &[AllyElement::Slow, AllyElement::Aoe] => "SA",
+            &[AllyElement::Slow, AllyElement::Dot] => "SD",
+            &[AllyElement::Slow, AllyElement::Critical] => "SC",
+            &[AllyElement::Aoe, AllyElement::Dot] => "AD",
+            &[AllyElement::Aoe, AllyElement::Critical] => "AC",
+            &[AllyElement::Dot, AllyElement::Critical] => "DC",
+            _ => {
+                unreachable!()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Eq, PartialOrd, Ord, Deserialize)]
 pub enum AllyElement {
     #[default]
     Basic,

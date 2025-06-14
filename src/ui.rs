@@ -2,7 +2,7 @@ use crate::app::App;
 use crate::game::AllyElement;
 use ratatui::{
     buffer::Buffer,
-    layout::{Alignment, Constraint, Layout, Rect},
+    layout::{Alignment, Constraint, Flex, Layout, Rect},
     style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
@@ -38,14 +38,15 @@ impl Widget for &mut App {
                 block.render(area, buf);
 
                 let [left_area, info_panel_area] =
-                    Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Percentage(0)])
+                    Layout::horizontal([Constraint::Ratio(3, 4), Constraint::Fill(1)])
                         .areas(inner_block);
-                let [grid_area, action_panel_area] =
+                let [grid_area, merge_panel] =
                     Layout::vertical([Constraint::Ratio(3, 4), Constraint::Fill(1)])
                         .areas(left_area);
 
                 self.render_grid(grid_area, buf);
-                self.render_logs(action_panel_area, buf);
+                self.render_logs(info_panel_area, buf);
+                self.render_merge_panel(merge_panel, buf);
             }
         }
     }
@@ -53,14 +54,63 @@ impl Widget for &mut App {
 
 impl App {
     fn render_logs(&mut self, area: Rect, buf: &mut Buffer) {
-        let block = Block::bordered()
-            .title("Events")
-            .padding(Padding::horizontal(2));
+        let block = Block::bordered().title("Events");
         let inner_block = block.inner(area);
         block.render(area, buf);
         TuiLoggerWidget::default()
             .state(&mut self.log_state.0)
             .render(inner_block, buf);
+    }
+
+    fn render_merge_panel(&mut self, area: Rect, buf: &mut Buffer) {
+        let block = Block::bordered()
+            .title("Merge Italian Brainrot")
+            .padding(Padding::horizontal(2));
+        let inner_block = block.inner(area);
+        block.render(area, buf);
+
+        let [ally_lhs, plus, ally_rhs, eq, ally_output] = Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Max(3),
+            Constraint::Fill(1),
+            Constraint::Max(3),
+            Constraint::Fill(1),
+        ])
+        .areas(inner_block);
+
+        let [plus_mid] = Layout::vertical([Constraint::Length(3)])
+            .flex(Flex::Center)
+            .areas(plus);
+        let [eq_mid] = Layout::vertical([Constraint::Length(3)])
+            .flex(Flex::Center)
+            .areas(eq);
+
+        Paragraph::new("+").render(plus_mid, buf);
+        Paragraph::new("=").render(eq_mid, buf);
+
+        let game = self.game.as_ref().unwrap();
+        let selected_ally = game
+            .selected
+            .and_then(|(y, x)| game.board.ally_grid[y][x].as_ref());
+        let hovered_ally = game.board.ally_grid[game.cursor.0][game.cursor.1].as_ref();
+
+        match (selected_ally, hovered_ally) {
+            (Some(lhs), Some(rhs)) => {
+                Paragraph::new(lhs.name())
+                    .alignment(Alignment::Center)
+                    .render(ally_lhs, buf);
+                Paragraph::new(rhs.name())
+                    .alignment(Alignment::Center)
+                    .render(ally_rhs, buf);
+                // let output = todo!();
+            }
+            (Some(lhs), None) | (None, Some(lhs)) => {
+                Paragraph::new(lhs.name())
+                    .alignment(Alignment::Center)
+                    .render(ally_lhs, buf);
+            }
+            (None, None) => {}
+        }
     }
 
     fn render_grid(&mut self, grid_area: Rect, buf: &mut Buffer) {
