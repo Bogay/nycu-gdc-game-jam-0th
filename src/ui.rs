@@ -1,3 +1,6 @@
+use crate::app::UniqueEffectId;
+use crate::fx::effect;
+// use crate::fx;
 use crate::game::AllyElement;
 use crate::{app::App, game::Ally};
 use color_eyre::eyre::{OptionExt, Result};
@@ -10,6 +13,8 @@ use ratatui::{
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
 use ratatui_image::{Resize, StatefulImage};
+use tachyonfx::{EffectTimer, Interpolation, Motion, fx};
+use tracing::info;
 use tui_big_text::BigText;
 use tui_logger::TuiLoggerWidget;
 
@@ -32,7 +37,6 @@ impl Widget for &mut App {
                     .build();
                 big_text.render(area, buf);
             }
-
             crate::app::AppMode::InGame => {
                 let block = Block::bordered()
                     .title(APP_NAME)
@@ -57,6 +61,10 @@ impl Widget for &mut App {
 }
 
 impl App {
+    // fn selected_area(&self) -> Option<Rect> {
+    //     self.game.and_then(|g| g.selected).map(|sele| {})
+    // }
+
     fn render_info_panel(&mut self, area: Rect, buf: &mut Buffer) {
         let [status_panel_area, events_panel_area] =
             Layout::vertical([Constraint::Max(3 + 2), Constraint::Fill(1)]).areas(area);
@@ -170,6 +178,23 @@ impl App {
         assert_eq!(GRID_HEIGHT, grid.len());
         assert_eq!(GRID_WIDTH, grid[0].len());
 
+        if self.is_selection_updated {
+            self.is_selection_updated = false;
+
+            if let Some((sele_y, sele_x)) = game.selected {
+                let sele_cell = grid[sele_y + 1][sele_x + 1].clone();
+                self.effects.0.add_unique_effect(
+                    UniqueEffectId::Selected,
+                    effect::selected_category(Color::Cyan, sele_cell.clone()),
+                );
+            } else {
+                self.effects.0.unique(
+                    UniqueEffectId::Selected,
+                    effect::selected_category(Color::Cyan, Rect::ZERO),
+                );
+            }
+        }
+
         // render all cells first
         for row in &grid {
             for cell in row {
@@ -237,10 +262,5 @@ impl App {
         let cursor_cell = grid[cursor_y + 1][cursor_x + 1].clone();
         let block = Block::bordered().border_style(Style::new().magenta());
         block.render(cursor_cell, buf);
-        if let Some((sele_y, sele_x)) = game.selected {
-            let sele_cell = grid[sele_y + 1][sele_x + 1].clone();
-            let block = Block::bordered().border_style(Style::new().magenta());
-            block.render(sele_cell, buf);
-        }
     }
 }

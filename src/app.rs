@@ -12,7 +12,8 @@ use ratatui_image::{
     picker::Picker,
     protocol::{ImageSource, Protocol, StatefulProtocol},
 };
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, time::Instant};
+use tachyonfx::{Duration, EffectManager};
 use tracing::info;
 use tui_logger::TuiWidgetState;
 
@@ -50,6 +51,25 @@ pub struct App {
     pub picker: Picker,
     /// Store all images used in game
     pub image_repository: HashMap<String, ProtocolWrapper>,
+    pub last_tick: Instant,
+    pub effects: Effects,
+    // pub first_frame: bool,
+    pub is_selection_updated: bool,
+}
+
+pub struct Effects(pub EffectManager<UniqueEffectId>);
+
+impl Debug for Effects {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Effects")
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum UniqueEffectId {
+    #[default]
+    Selected,
+    Hover,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -69,6 +89,9 @@ impl Default for App {
             log_state: TuiWidgetStateWrapper(TuiWidgetState::default()),
             picker: Picker::from_query_stdio().expect("failed to init app.picker"),
             image_repository: HashMap::new(),
+            effects: Effects(EffectManager::default()),
+            last_tick: Instant::now(),
+            is_selection_updated: false,
         }
     }
 }
@@ -82,7 +105,15 @@ impl App {
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         while self.running {
-            terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
+            let duration = self.last_tick.elapsed().into();
+            self.last_tick = Instant::now();
+            terminal.draw(|frame| {
+                frame.render_widget(&mut self, frame.area());
+                let area = frame.area();
+                self.effects
+                    .0
+                    .process_effects(duration, frame.buffer_mut(), area);
+            })?;
             self.handle_events()?;
         }
         Ok(())
@@ -114,6 +145,7 @@ impl App {
                 AppEvent::ToggleSelection => {
                     assert!(self.game.is_some());
                     self.game.as_mut().unwrap().cursor_select();
+                    self.is_selection_updated = true;
                 }
                 AppEvent::BuyAlly => {
                     assert!(self.game.is_some());
