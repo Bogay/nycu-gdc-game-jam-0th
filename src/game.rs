@@ -493,7 +493,14 @@ impl Game {
             enemy.position += move_amount;
         }
 
-        // Remove dead enemies
+        // Remove dead enemies and add coins
+        let dead_count = self
+            .board
+            .enemies
+            .iter()
+            .filter(|enemy| enemy.hp == 0)
+            .count();
+        self.coin += dead_count * 10;
         self.board.enemies.retain(|enemy| enemy.hp > 0);
     }
     fn state_checkwin(&self) -> bool {
