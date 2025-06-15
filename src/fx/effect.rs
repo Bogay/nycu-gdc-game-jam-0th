@@ -242,6 +242,33 @@ pub fn color_cycle_fg<I>(
 where
     I: IndexResolver<Color> + Clone + Debug + Send + 'static,
 {
+    color_cycle(colors, step_duration, predicate, |cell, color| {
+        cell.set_fg(color);
+    })
+}
+
+pub fn color_cycle_bg<I>(
+    colors: ColorCycle<I>,
+    step_duration: u32,
+    predicate: impl Fn(&Cell) -> bool + 'static,
+) -> Effect
+where
+    I: IndexResolver<Color> + Clone + Debug + Send + 'static,
+{
+    color_cycle(colors, step_duration, predicate, |cell, color| {
+        cell.set_bg(color);
+    })
+}
+
+fn color_cycle<I>(
+    colors: ColorCycle<I>,
+    step_duration: u32,
+    predicate: impl Fn(&Cell) -> bool + 'static,
+    apply_color: impl Fn(&mut Cell, Color) + 'static,
+) -> Effect
+where
+    I: IndexResolver<Color> + Clone + Debug + Send + 'static,
+{
     use tachyonfx::fx::*;
 
     let duration = Duration::from_millis(u32::MAX);
@@ -265,7 +292,7 @@ where
                 .filter(|(_, c)| predicate(c))
                 .map(|(pos, cell)| (color(pos), cell))
                 .for_each(|(color, cell)| {
-                    cell.set_fg(color);
+                    apply_color(cell, color);
                 });
         },
     )

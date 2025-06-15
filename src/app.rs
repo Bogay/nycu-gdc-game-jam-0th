@@ -53,8 +53,8 @@ pub struct App {
     pub image_repository: HashMap<String, ProtocolWrapper>,
     pub last_tick: Instant,
     pub effects: Effects,
-    // pub first_frame: bool,
     pub is_selection_updated: bool,
+    pub is_ally_updated: bool,
 }
 
 pub struct Effects(pub EffectManager<UniqueEffectId>);
@@ -92,6 +92,7 @@ impl Default for App {
             effects: Effects(EffectManager::default()),
             last_tick: Instant::now(),
             is_selection_updated: false,
+            is_ally_updated: false,
         }
     }
 }
@@ -146,10 +147,12 @@ impl App {
                     assert!(self.game.is_some());
                     self.game.as_mut().unwrap().cursor_select();
                     self.is_selection_updated = true;
+                    self.is_ally_updated = true;
                 }
                 AppEvent::BuyAlly => {
                     assert!(self.game.is_some());
                     self.game.as_mut().unwrap().buy_ally();
+                    self.is_ally_updated = true;
                 }
             },
         }

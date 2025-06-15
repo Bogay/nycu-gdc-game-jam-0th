@@ -1,4 +1,5 @@
 use crate::app::UniqueEffectId;
+use crate::color_cycle::RepeatingColorCycle;
 use crate::fx::effect;
 // use crate::fx;
 use crate::game::AllyElement;
@@ -14,7 +15,9 @@ use ratatui::{
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
 use ratatui_image::{Resize, StatefulImage};
-use tachyonfx::{EffectTimer, Interpolation, Motion, fx};
+use tachyonfx::{
+    ColorSpace, Duration, EffectTimer, HslConvertable, Interpolation, Motion, ToRgbComponents, fx,
+};
 use tracing::info;
 use tui_big_text::BigText;
 use tui_logger::TuiLoggerWidget;
@@ -228,14 +231,8 @@ impl App {
                     Some(a) => a.level.to_string(),
                     None => "".to_string(),
                 };
-                let style = match ally.as_ref().map(|a| &a.element) {
-                    Some(AllyElement::Basic) => Style::new().bg(Catppuccin::new().yellow),
-                    Some(AllyElement::Slow) => Style::new().bg(Color::LightBlue),
-                    Some(AllyElement::Dot) => Style::new().bg(Color::LightGreen),
-                    Some(AllyElement::Aoe) => Style::new().bg(Color::LightRed),
-                    Some(AllyElement::Critical) => Style::new().bg(Color::Gray),
-                    None => Style::new().bg(Color::Black),
-                };
+
+                let style = calculate_ally_style(ally);
                 let block = Block::bordered().style(style);
                 let p = Paragraph::new(text)
                     .block(block)
@@ -243,6 +240,28 @@ impl App {
 
                 let rect = grid[row_i][col_i].clone();
                 p.render(rect, buf);
+            }
+        }
+
+        // update fx
+        if self.is_ally_updated {
+            self.is_ally_updated = false;
+            for row_i in 1..GRID_HEIGHT - 1 {
+                for col_i in 1..GRID_WIDTH - 1 {
+                    let ally = &game.board.ally_grid[row_i - 1][col_i - 1];
+                    if let Some((e0, e1)) = ally
+                        .as_ref()
+                        .and_then(|a| a.second_element.map(|e1| (a.element, e1)))
+                    {
+                        let c0 = ally_element_color(e0);
+                        let c1 = ally_element_color(e1);
+                        let rect = grid[row_i][col_i].clone();
+                        let fx =
+                            effect::color_cycle_bg(mixed_element_color(c0, c1, 3), 66, |_| true)
+                                .with_area(rect);
+                        self.effects.0.add_effect(fx);
+                    }
+                }
             }
         }
 
@@ -278,4 +297,79 @@ impl App {
         let block = Block::bordered().border_style(Style::new().magenta());
         block.render(cursor_cell, buf);
     }
+}
+
+fn calculate_ally_style(ally: &Option<Ally>) -> Style {
+    match ally.as_ref().map(|a| a.element) {
+        Some(elem) => Style::new().bg(ally_element_color(elem)),
+        None => Style::new().bg(Color::Black),
+    }
+}
+
+fn ally_element_color(elem: AllyElement) -> Color {
+    match elem {
+        AllyElement::Basic => Catppuccin::new().yellow,
+        AllyElement::Slow => Color::LightBlue,
+        AllyElement::Dot => Color::LightGreen,
+        AllyElement::Aoe => Color::LightRed,
+        AllyElement::Critical => Color::Gray,
+    }
+}
+
+fn mixed_element_color(c0: Color, c1: Color, step: usize) -> RepeatingColorCycle {
+    let color_step: usize = 7 * step;
+
+    let (h0, s0, l0) = c0.to_hsl_f32();
+    let (h1, s1, l1) = c1.to_hsl_f32();
+
+    let color_l0 = Color::from_hsl_f32(h0, s0, 80.0);
+    let color_d0 = Color::from_hsl_f32(h0, s0, 40.0);
+    let color_l1 = Color::from_hsl_f32(h1, s1, 80.0);
+    let color_d1 = Color::from_hsl_f32(h1, s1, 40.0);
+
+    RepeatingColorCycle::new(
+        c0,
+        &[
+            (4 * step, color_d0),
+            (2 * step, color_l0),
+            (
+                4 * step,
+                Color::from_hsl_f32((h0 - 25.0) % 360.0, s0, (l0 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32(h0, (s0 - 20.0).max(0.0), (l0 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32((h0 + 25.0) % 360.0, s0, (l0 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32(h0, (s0 + 20.0).max(0.0), (l0 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32(h1, (s1 + 20.0).max(0.0), (l1 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32((h1 + 25.0) % 360.0, s1, (l1 + 10.0).min(100.0)),
+            ),
+            (
+                color_step,
+                Color::from_hsl_f32(h1, (s1 - 20.0).max(0.0), (l1 + 10.0).min(100.0)),
+            ),
+            (
+                4 * step,
+                Color::from_hsl_f32((h1 - 25.0) % 360.0, s1, (l1 + 10.0).min(100.0)),
+            ),
+            (2 * step, color_l1),
+            (4 * step, color_d1),
+        ],
+    )
+}
+
+fn lerp(a: u8, b: u8, t: f32) -> u8 {
+    a + ((b - a) as f32 * t).floor() as u8
 }
