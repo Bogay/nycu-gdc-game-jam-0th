@@ -1,4 +1,8 @@
+use crate::app::UniqueEffectId;
+use crate::fx::effect;
+// use crate::fx;
 use crate::game::AllyElement;
+use crate::styling::Catppuccin;
 use crate::{app::App, game::Ally};
 use color_eyre::eyre::{OptionExt, Result};
 use ratatui::{
@@ -10,6 +14,8 @@ use ratatui::{
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
 use ratatui_image::{Resize, StatefulImage};
+use tachyonfx::{EffectTimer, Interpolation, Motion, fx};
+use tracing::info;
 use tui_big_text::BigText;
 use tui_logger::TuiLoggerWidget;
 
@@ -32,7 +38,6 @@ impl Widget for &mut App {
                     .build();
                 big_text.render(area, buf);
             }
-
             crate::app::AppMode::InGame => {
                 let block = Block::bordered()
                     .title(APP_NAME)
@@ -57,6 +62,10 @@ impl Widget for &mut App {
 }
 
 impl App {
+    // fn selected_area(&self) -> Option<Rect> {
+    //     self.game.and_then(|g| g.selected).map(|sele| {})
+    // }
+
     fn render_info_panel(&mut self, area: Rect, buf: &mut Buffer) {
         let [status_panel_area, events_panel_area] =
             Layout::vertical([Constraint::Max(3 + 2), Constraint::Fill(1)]).areas(area);
@@ -129,7 +138,15 @@ impl App {
                     .expect("failed to render lhs ally");
                 self.render_ally(&rhs, ally_rhs, buf)
                     .expect("failed to render lhs ally");
-                // let output = todo!();
+                if let Some(output) = self
+                    .game
+                    .as_mut()
+                    .unwrap()
+                    .ally_merge(lhs.clone(), rhs.clone())
+                {
+                    self.render_ally(&output, ally_output, buf)
+                        .expect("failed to render output ally");
+                }
             }
             (Some(lhs), None) | (None, Some(lhs)) => {
                 self.render_ally(&lhs, ally_lhs, buf)
@@ -140,15 +157,21 @@ impl App {
     }
 
     fn render_ally(&mut self, ally: &Ally, area: Rect, buf: &mut Buffer) -> Result<()> {
+        let [avatar_rect, name_rect] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Max(1)]).areas(area);
         let ally_image = self
             .image_repository
             .get_mut(ally.avatar_path())
             .ok_or_eyre("failed to get ally image")?;
+        let [avatar_rect_mid] = Layout::horizontal([Constraint::Length(16)])
+            .flex(Flex::Center)
+            .areas(avatar_rect);
         let image = StatefulImage::new().resize(Resize::Fit(None));
-        image.render(area, buf, &mut ally_image.0);
+        image.render(avatar_rect_mid, buf, &mut ally_image.0);
         Paragraph::new(ally.name())
+            .bg(Color::Black)
             .alignment(Alignment::Center)
-            .render(area, buf);
+            .render(name_rect, buf);
         Ok(())
     }
 
@@ -170,15 +193,32 @@ impl App {
         assert_eq!(GRID_HEIGHT, grid.len());
         assert_eq!(GRID_WIDTH, grid[0].len());
 
-        // render all cells first
-        for row in &grid {
-            for cell in row {
-                let p = Paragraph::new("")
-                    .block(Block::bordered())
-                    .style(Style::new().gray());
-                p.render(cell.clone(), buf);
+        if self.is_selection_updated {
+            self.is_selection_updated = false;
+
+            if let Some((sele_y, sele_x)) = game.selected {
+                let sele_cell = grid[sele_y + 1][sele_x + 1].clone();
+                self.effects.0.add_unique_effect(
+                    UniqueEffectId::Selected,
+                    effect::selected_category(Color::Cyan, sele_cell.clone()),
+                );
+            } else {
+                self.effects.0.unique(
+                    UniqueEffectId::Selected,
+                    effect::selected_category(Color::Cyan, Rect::ZERO),
+                );
             }
         }
+
+        // render all cells first
+        // for row in &grid {
+        //     for cell in row {
+        //         let p = Paragraph::new("")
+        //             .block(Block::bordered())
+        //             .style(Style::new().gray());
+        //         p.render(cell.clone(), buf);
+        //     }
+        // }
 
         // render ally grid
         for row_i in 1..GRID_HEIGHT - 1 {
@@ -189,14 +229,14 @@ impl App {
                     None => "".to_string(),
                 };
                 let style = match ally.as_ref().map(|a| &a.element) {
-                    Some(AllyElement::Basic) => Style::new().bg(Color::White),
+                    Some(AllyElement::Basic) => Style::new().bg(Catppuccin::new().yellow),
                     Some(AllyElement::Slow) => Style::new().bg(Color::LightBlue),
                     Some(AllyElement::Dot) => Style::new().bg(Color::LightGreen),
                     Some(AllyElement::Aoe) => Style::new().bg(Color::LightRed),
-                    Some(AllyElement::Critical) => Style::new().bg(Color::Yellow),
+                    Some(AllyElement::Critical) => Style::new().bg(Color::Gray),
                     None => Style::new().bg(Color::Black),
                 };
-                let block = Block::new().style(style);
+                let block = Block::bordered().style(style);
                 let p = Paragraph::new(text)
                     .block(block)
                     .alignment(Alignment::Center);
@@ -237,10 +277,5 @@ impl App {
         let cursor_cell = grid[cursor_y + 1][cursor_x + 1].clone();
         let block = Block::bordered().border_style(Style::new().magenta());
         block.render(cursor_cell, buf);
-        if let Some((sele_y, sele_x)) = game.selected {
-            let sele_cell = grid[sele_y + 1][sele_x + 1].clone();
-            let block = Block::bordered().border_style(Style::new().magenta());
-            block.render(sele_cell, buf);
-        }
     }
 }
