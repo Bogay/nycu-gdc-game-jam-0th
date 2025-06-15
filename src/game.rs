@@ -633,9 +633,14 @@ impl Game {
             })
         } else if ally1.second_element.is_none() && ally2.second_element.is_none() {
             // Merge two no second element allies (no upgrade)
+            let (e0, e1) = if ally1.element < ally2.element {
+                (ally1.element.clone(), Some(ally2.element.clone()))
+            } else {
+                (ally2.element.clone(), Some(ally1.element.clone()))
+            };
             Some(Ally {
-                element: ally1.element.clone(), //todo sort two elements
-                second_element: Some(ally2.element.clone()),
+                element: e0,
+                second_element: e1,
                 atk: std::cmp::max(ally1.atk, ally2.atk),
                 range: std::cmp::max(ally1.range, ally2.range),
                 aoe_range: std::cmp::max(ally1.aoe_range, ally2.aoe_range),
