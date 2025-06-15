@@ -1,8 +1,11 @@
+use color_eyre::eyre::Result;
 use rand::prelude::IndexedRandom;
-use rand::seq::SliceRandom;
 use rand::thread_rng;
+use ratatui_image::protocol::Protocol;
 use serde::Deserialize;
-use std::clone;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::path::PathBuf;
 use tracing::info;
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -18,7 +21,7 @@ pub enum GameState {
 pub struct Board {
     pub ally_grid: Vec<Vec<Option<Ally>>>,
     pub enemies: Vec<Enemy>,
-    enemy_ready2spawn: Vec<(Enemy, usize)>,
+    pub enemy_ready2spawn: Vec<(Enemy, usize)>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
@@ -42,21 +45,48 @@ impl Ally {
             Some(e) => vec![self.element, e],
         };
         match elems.as_slice() {
-            &[AllyElement::Basic] => "B",
-            &[AllyElement::Slow] => "S",
-            &[AllyElement::Aoe] => "A",
-            &[AllyElement::Dot] => "D",
-            &[AllyElement::Critical] => "C",
-            &[AllyElement::Basic, AllyElement::Slow] => "BS",
-            &[AllyElement::Basic, AllyElement::Aoe] => "BA",
-            &[AllyElement::Basic, AllyElement::Dot] => "BD",
-            &[AllyElement::Basic, AllyElement::Critical] => "BC",
-            &[AllyElement::Slow, AllyElement::Aoe] => "SA",
-            &[AllyElement::Slow, AllyElement::Dot] => "SD",
-            &[AllyElement::Slow, AllyElement::Critical] => "SC",
-            &[AllyElement::Aoe, AllyElement::Dot] => "AD",
-            &[AllyElement::Aoe, AllyElement::Critical] => "AC",
-            &[AllyElement::Dot, AllyElement::Critical] => "DC",
+            &[AllyElement::Basic] => "Tung Tung Tung Sahur",
+            &[AllyElement::Slow] => "Tralalero Tralala",
+            &[AllyElement::Aoe] => "Bombardiro Crocodilo",
+            &[AllyElement::Dot] => "Lirili Larila",
+            &[AllyElement::Critical] => "Capuccino Assassino",
+            &[AllyElement::Basic, AllyElement::Slow] => "Tralatung Sahurrissimo",
+            &[AllyElement::Basic, AllyElement::Aoe] => "Bombatung Croco Sahurrissimo",
+            &[AllyElement::Basic, AllyElement::Dot] => "Liritung Sahurilla",
+            &[AllyElement::Basic, AllyElement::Critical] => "Caputung Sahurricinissimo",
+            &[AllyElement::Slow, AllyElement::Aoe] => "Tralalero Bombocodilo Bombo",
+            &[AllyElement::Slow, AllyElement::Dot] => "Tralili Larilalero Lala",
+            &[AllyElement::Slow, AllyElement::Critical] => "Tralacino Tralassino Cino",
+            &[AllyElement::Aoe, AllyElement::Dot] => "Bombilì Larilocodilo Lari",
+            &[AllyElement::Aoe, AllyElement::Critical] => "Bombacino Crocossino Assa",
+            &[AllyElement::Dot, AllyElement::Critical] => "Liricino Assalila Cappu",
+            _ => {
+                unreachable!()
+            }
+        }
+    }
+
+    pub fn avatar_path(&self) -> &'static str {
+        let elems = match self.second_element {
+            None => vec![self.element],
+            Some(e) => vec![self.element, e],
+        };
+        match elems.as_slice() {
+            &[AllyElement::Basic] => "assets/avatars/basic.png",
+            &[AllyElement::Slow] => "assets/avatars/slow.png",
+            &[AllyElement::Aoe] => "assets/avatars/aoe.png",
+            &[AllyElement::Dot] => "assets/avatars/dot.png",
+            &[AllyElement::Critical] => "assets/avatars/critical.png",
+            &[AllyElement::Basic, AllyElement::Slow] => "assets/avatars/basic_slow.png",
+            &[AllyElement::Basic, AllyElement::Aoe] => "assets/avatars/basic_aoe.png",
+            &[AllyElement::Basic, AllyElement::Dot] => "assets/avatars/basic_dot.png",
+            &[AllyElement::Basic, AllyElement::Critical] => "assets/avatars/basic_critical.png",
+            &[AllyElement::Slow, AllyElement::Aoe] => "assets/avatars/slow_aoe.png",
+            &[AllyElement::Slow, AllyElement::Dot] => "assets/avatars/slow_dot.png",
+            &[AllyElement::Slow, AllyElement::Critical] => "assets/avatars/slow_critical.png",
+            &[AllyElement::Aoe, AllyElement::Dot] => "assets/avatars/aoe_dot.png",
+            &[AllyElement::Aoe, AllyElement::Critical] => "assets/avatars/aoe_critical.png",
+            &[AllyElement::Dot, AllyElement::Critical] => "assets/avatars/dot_critical.png",
             _ => {
                 unreachable!()
             }
@@ -603,9 +633,14 @@ impl Game {
             })
         } else if ally1.second_element.is_none() && ally2.second_element.is_none() {
             // Merge two no second element allies (no upgrade)
+            let (e0, e1) = if ally1.element < ally2.element {
+                (ally1.element.clone(), Some(ally2.element.clone()))
+            } else {
+                (ally2.element.clone(), Some(ally1.element.clone()))
+            };
             Some(Ally {
-                element: ally1.element.clone(), //todo sort two elements
-                second_element: Some(ally2.element.clone()),
+                element: e0,
+                second_element: e1,
                 atk: std::cmp::max(ally1.atk, ally2.atk),
                 range: std::cmp::max(ally1.range, ally2.range),
                 aoe_range: std::cmp::max(ally1.aoe_range, ally2.aoe_range),

@@ -1,13 +1,19 @@
-use std::fmt::Debug;
-
 use crate::{
     event::{AppEvent, Event, EventHandler},
     game::{Ally, AllyElement, Game},
 };
+use color_eyre::Result;
+use rand::seq::IndexedRandom;
 use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
+use ratatui_image::{
+    picker::Picker,
+    protocol::{ImageSource, Protocol, StatefulProtocol},
+};
+use std::{collections::HashMap, fmt::Debug};
+use tracing::info;
 use tui_logger::TuiWidgetState;
 
 /// Workaround to make TuiWidgetState `Debug`
@@ -17,6 +23,14 @@ impl Debug for TuiWidgetStateWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "TuiWidgetStateWrapper ")?;
         Ok(())
+    }
+}
+
+pub struct ProtocolWrapper(pub StatefulProtocol);
+
+impl Debug for ProtocolWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ProtocolWrapper")
     }
 }
 
@@ -32,6 +46,10 @@ pub struct App {
     pub game: Option<Game>,
     pub mode: AppMode,
     pub log_state: TuiWidgetStateWrapper,
+    /// For rendering image
+    pub picker: Picker,
+    /// Store all images used in game
+    pub image_repository: HashMap<String, ProtocolWrapper>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -49,6 +67,8 @@ impl Default for App {
             game: None,
             mode: AppMode::Menu,
             log_state: TuiWidgetStateWrapper(TuiWidgetState::default()),
+            picker: Picker::from_query_stdio().expect("failed to init app.picker"),
+            image_repository: HashMap::new(),
         }
     }
 }
@@ -83,6 +103,8 @@ impl App {
                     assert_eq!(AppMode::Menu, self.mode);
                     self.game = Some(Game::new());
                     self.game.as_mut().unwrap().init_game();
+                    self.init_image_repository()
+                        .expect("failed to read image assets");
                     self.mode = AppMode::InGame;
                 }
                 AppEvent::MoveCursor(direction) => {
@@ -99,6 +121,30 @@ impl App {
                 }
             },
         }
+        Ok(())
+    }
+
+    fn init_image_repository(&mut self) -> Result<()> {
+        let image_paths = std::fs::read_dir("assets/avatars/")?
+            .map(|r| r.map(|e| e.path()))
+            .collect::<Result<Vec<_>, _>>()?;
+        info!(count = image_paths.len(), "load image");
+        for p in &image_paths {
+            info!(path = p.to_str(), "load single image");
+        }
+        let image_sources = image_paths
+            .iter()
+            .map::<Result<image::DynamicImage>, _>(|p| Ok(image::ImageReader::open(p)?.decode()?))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|img| ProtocolWrapper(self.picker.new_resize_protocol(img)));
+        assert_eq!(image_paths.len(), image_sources.len());
+        self.image_repository.extend(
+            image_paths
+                .into_iter()
+                .map(|e| e.to_string_lossy().to_string())
+                .zip(image_sources),
+        );
         Ok(())
     }
 
