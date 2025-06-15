@@ -1,14 +1,17 @@
-use crate::app::App;
 use crate::game::AllyElement;
+use crate::{app::App, game::Ally};
+use color_eyre::eyre::{OptionExt, Result};
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
+    prelude::StatefulWidget,
     style::{Color, Style, Stylize},
     text::Line,
     widgets::{Block, BorderType, Padding, Paragraph, Widget},
 };
-use tui_big_text::{BigText, PixelSize};
-use tui_logger::{TuiLoggerSmartWidget, TuiLoggerWidget};
+use ratatui_image::{Resize, StatefulImage};
+use tui_big_text::BigText;
+use tui_logger::TuiLoggerWidget;
 
 const APP_NAME: &str = "Brainrot TD";
 
@@ -112,29 +115,41 @@ impl App {
         Paragraph::new("+").render(plus_mid, buf);
         Paragraph::new("=").render(eq_mid, buf);
 
-        let game = self.game.as_ref().unwrap();
-        let selected_ally = game
-            .selected
-            .and_then(|(y, x)| game.board.ally_grid[y][x].as_ref());
-        let hovered_ally = game.board.ally_grid[game.cursor.0][game.cursor.1].as_ref();
-
+        let (selected_ally, hovered_ally) = {
+            let game = self.game.as_ref().unwrap();
+            let selected_ally = game
+                .selected
+                .and_then(|(y, x)| game.board.ally_grid[y][x].clone());
+            let hovered_ally = game.board.ally_grid[game.cursor.0][game.cursor.1].clone();
+            (selected_ally, hovered_ally)
+        };
         match (selected_ally, hovered_ally) {
             (Some(lhs), Some(rhs)) => {
-                Paragraph::new(lhs.name())
-                    .alignment(Alignment::Center)
-                    .render(ally_lhs, buf);
-                Paragraph::new(rhs.name())
-                    .alignment(Alignment::Center)
-                    .render(ally_rhs, buf);
+                self.render_ally(&lhs, ally_lhs, buf)
+                    .expect("failed to render lhs ally");
+                self.render_ally(&rhs, ally_rhs, buf)
+                    .expect("failed to render lhs ally");
                 // let output = todo!();
             }
             (Some(lhs), None) | (None, Some(lhs)) => {
-                Paragraph::new(lhs.name())
-                    .alignment(Alignment::Center)
-                    .render(ally_lhs, buf);
+                self.render_ally(&lhs, ally_lhs, buf)
+                    .expect("failed to render lhs ally");
             }
             (None, None) => {}
         }
+    }
+
+    fn render_ally(&mut self, ally: &Ally, area: Rect, buf: &mut Buffer) -> Result<()> {
+        let ally_image = self
+            .image_repository
+            .get_mut(ally.avatar_path())
+            .ok_or_eyre("failed to get ally image")?;
+        let image = StatefulImage::new().resize(Resize::Fit(None));
+        image.render(area, buf, &mut ally_image.0);
+        Paragraph::new(ally.name())
+            .alignment(Alignment::Center)
+            .render(area, buf);
+        Ok(())
     }
 
     fn render_grid(&mut self, grid_area: Rect, buf: &mut Buffer) {
