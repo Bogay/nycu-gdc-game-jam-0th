@@ -157,15 +157,21 @@ impl App {
     }
 
     fn render_ally(&mut self, ally: &Ally, area: Rect, buf: &mut Buffer) -> Result<()> {
+        let [avatar_rect, name_rect] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Max(1)]).areas(area);
         let ally_image = self
             .image_repository
             .get_mut(ally.avatar_path())
             .ok_or_eyre("failed to get ally image")?;
+        let [avatar_rect_mid] = Layout::horizontal([Constraint::Length(16)])
+            .flex(Flex::Center)
+            .areas(avatar_rect);
         let image = StatefulImage::new().resize(Resize::Fit(None));
-        image.render(area, buf, &mut ally_image.0);
+        image.render(avatar_rect_mid, buf, &mut ally_image.0);
         Paragraph::new(ally.name())
+            .bg(Color::Black)
             .alignment(Alignment::Center)
-            .render(area, buf);
+            .render(name_rect, buf);
         Ok(())
     }
 
