@@ -608,7 +608,7 @@ impl Game {
 
     //if drop a save level on a allay they will levelup
     // Merge two allies at the given positions (i1, j1) and (i2, j2)
-    fn ally_merge(&mut self, ally1: Ally, ally2: Ally) -> Option<Ally> {
+    pub fn ally_merge(&mut self, ally1: Ally, ally2: Ally) -> Option<Ally> {
         // Check if levels are the same
         if ally1.level != ally2.level {
             return None;

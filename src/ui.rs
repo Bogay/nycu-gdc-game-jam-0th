@@ -2,6 +2,7 @@ use crate::app::UniqueEffectId;
 use crate::fx::effect;
 // use crate::fx;
 use crate::game::AllyElement;
+use crate::styling::Catppuccin;
 use crate::{app::App, game::Ally};
 use color_eyre::eyre::{OptionExt, Result};
 use ratatui::{
@@ -137,7 +138,15 @@ impl App {
                     .expect("failed to render lhs ally");
                 self.render_ally(&rhs, ally_rhs, buf)
                     .expect("failed to render lhs ally");
-                // let output = todo!();
+                if let Some(output) = self
+                    .game
+                    .as_mut()
+                    .unwrap()
+                    .ally_merge(lhs.clone(), rhs.clone())
+                {
+                    self.render_ally(&output, ally_output, buf)
+                        .expect("failed to render output ally");
+                }
             }
             (Some(lhs), None) | (None, Some(lhs)) => {
                 self.render_ally(&lhs, ally_lhs, buf)
@@ -196,14 +205,14 @@ impl App {
         }
 
         // render all cells first
-        for row in &grid {
-            for cell in row {
-                let p = Paragraph::new("")
-                    .block(Block::bordered())
-                    .style(Style::new().gray());
-                p.render(cell.clone(), buf);
-            }
-        }
+        // for row in &grid {
+        //     for cell in row {
+        //         let p = Paragraph::new("")
+        //             .block(Block::bordered())
+        //             .style(Style::new().gray());
+        //         p.render(cell.clone(), buf);
+        //     }
+        // }
 
         // render ally grid
         for row_i in 1..GRID_HEIGHT - 1 {
@@ -214,14 +223,14 @@ impl App {
                     None => "".to_string(),
                 };
                 let style = match ally.as_ref().map(|a| &a.element) {
-                    Some(AllyElement::Basic) => Style::new().bg(Color::White),
+                    Some(AllyElement::Basic) => Style::new().bg(Catppuccin::new().yellow),
                     Some(AllyElement::Slow) => Style::new().bg(Color::LightBlue),
                     Some(AllyElement::Dot) => Style::new().bg(Color::LightGreen),
                     Some(AllyElement::Aoe) => Style::new().bg(Color::LightRed),
-                    Some(AllyElement::Critical) => Style::new().bg(Color::Yellow),
+                    Some(AllyElement::Critical) => Style::new().bg(Color::Gray),
                     None => Style::new().bg(Color::Black),
                 };
-                let block = Block::new().style(style);
+                let block = Block::bordered().style(style);
                 let p = Paragraph::new(text)
                     .block(block)
                     .alignment(Alignment::Center);
