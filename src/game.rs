@@ -556,28 +556,28 @@ impl Game {
             Some(Ally {
                 element: ally1.element.clone(),
                 second_element: None,
-                atk: ((ally1.atk as f32) * 1.5) as usize,
-                range: ((ally1.range as f32) * 1.5) as usize,
-                aoe_range: ((ally1.aoe_range as f32) * 1.5) as usize,
+                atk: ((ally1.atk as f32) * ally1.levelup_ratio) as usize,
+                range: ((ally1.range as f32) * ally1.levelup_ratio) as usize,
+                aoe_range: ((ally1.aoe_range as f32) * ally1.levelup_ratio) as usize,
                 level: ally1.level + 1,
-                atk_speed: ally1.atk_speed * 1.5,
+                atk_speed: ally1.atk_speed * ally1.levelup_ratio,
                 attack_cooldown: 0.0,
-                levelup_ratio: 1.5,
-                special_value: 1.5,
+                levelup_ratio: ally1.levelup_ratio,
+                special_value: ally1.special_value * ally1.levelup_ratio,
             })
         } else if ally1.second_element.is_none() && ally2.second_element.is_none() {
             // Merge two no second element allies (no upgrade)
             Some(Ally {
-                element: ally1.element.clone(),
+                element: ally1.element.clone(), //todo sort two elements
                 second_element: Some(ally2.element.clone()),
-                atk: ally1.atk,
-                range: ally1.range,
-                aoe_range: ally1.aoe_range,
+                atk: std::cmp::max(ally1.atk, ally2.atk),
+                range: std::cmp::max(ally1.range, ally2.range),
+                aoe_range: std::cmp::max(ally1.aoe_range, ally2.aoe_range),
                 level: ally1.level,
-                atk_speed: ally1.atk_speed,
+                atk_speed: (ally1.atk_speed + ally2.atk_speed) / 2.0,
                 attack_cooldown: 0.0,
-                levelup_ratio: 1.5,
-                special_value: 1.5,
+                levelup_ratio: (ally1.levelup_ratio + ally2.levelup_ratio) / 2.0,
+                special_value: (ally1.special_value + ally2.special_value) / 2.0,
             })
         } else {
             None
