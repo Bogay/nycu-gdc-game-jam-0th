@@ -773,7 +773,7 @@ impl Game {
                 dot_list: Vec::new(),
                 slow_list: Vec::new(),
             };
-            let spawn_time = rng.gen_range(0..=100);
+            let spawn_time = rng.gen_range(0..=1000);
             self.board.enemy_ready2spawn.push((enemy, spawn_time));
         }
     }
